@@ -8,6 +8,7 @@ __pycache__/
 
 # Media
 media/
+notes.md
 
 # Distribution / packaging
 .Python
