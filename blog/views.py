@@ -134,13 +134,12 @@ def tag_filter(request, tag_title):
         .join_comments_amount()
     )
 
-    # related_posts = tag.posts.all()[:20].join_comments_amount()
-    related_posts = tag.posts.all()[:20]
+    related_posts = tag.posts.all()[:20].join_comments_amount()
 
     context = {
         'tag': tag.title,
         'popular_tags': [serialize_tag(tag) for tag in most_popular_tags],
-        'posts': [serialize_post(post) for post in related_posts],
+        'posts': [serialize_post_optimize(post) for post in related_posts],
         'most_popular_posts': [
             serialize_post_optimize(post) for post in most_popular_posts
         ],
