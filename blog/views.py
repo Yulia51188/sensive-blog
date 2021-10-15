@@ -45,38 +45,83 @@ def serialize_tag(tag):
     }
 
 
-def index(request):
+def get_most_popular_posts(posts_amount):
+    prefetch_posts_amount = Prefetch(
+        'tags',
+        queryset=Tag.objects.annotate(posts_amount=Count('posts',
+                                                         distinct=True)),
+    )    
+    most_popular_posts = (
+        Post.objects
+        .popular()[:posts_amount]
+        .prefetch_related('author')
+        .prefetch_related(prefetch_posts_amount)
+        .join_comments_amount()
+    )
+    return list(most_popular_posts)
+
+
+def get_most_fresh_posts(posts_amount):
+    prefetch_posts_amount = Prefetch(
+        'tags',
+        queryset=Tag.objects.annotate(posts_amount=Count('posts',
+                                                         distinct=True)),
+    )    
+    fresh_posts = (
+        Post.objects
+        .annotate(comments_amount=Count('comments', distinct=True))
+        .order_by('-published_at')[:posts_amount]
+        .prefetch_related('author')
+        .prefetch_related(prefetch_posts_amount)
+    )
+    return list(fresh_posts)
+
+
+def get_tag_related_posts(tag, posts_amount):
     prefetch_posts_amount = Prefetch(
         'tags',
         queryset=Tag.objects.annotate(posts_amount=Count('posts',
                                                          distinct=True)),
     )
 
-    most_popular_posts = list(
-        Post.objects
-        .popular()[:5]
+    related_posts = (
+        tag.posts.all()[:posts_amount]
         .prefetch_related('author')
         .prefetch_related(prefetch_posts_amount)
         .join_comments_amount()
     )
+    return list(related_posts)
 
-    fresh_posts = (
-        Post.objects
-        .annotate(comments_amount=Count('comments', distinct=True))
-        .order_by('-published_at')
-        .prefetch_related('author')
-        .prefetch_related(prefetch_posts_amount)
+
+def get_post_with_related_items(slug):
+    prefetch_posts_amount = Prefetch(
+        'tags',
+        queryset=Tag.objects.annotate(posts_amount=Count('posts',
+                                                         distinct=True)),
     )
-    most_fresh_posts = list(fresh_posts)[:5]
+
+    post = (
+        Post.objects
+        .select_related('author')
+        .prefetch_related(prefetch_posts_amount)
+        .get(slug=slug)
+    )
+    return post
+
+
+def index(request):
+
+    most_popular_posts = get_most_popular_posts(5)
+    most_fresh_posts = get_most_fresh_posts(5)
 
     most_popular_tags = Tag.objects.popular()[:5]
 
     context = {
         'most_popular_posts': [
-            serialize_post_optimize(post) for post in most_popular_posts
+            serialize_post(post) for post in most_popular_posts
         ],
-        'page_posts': [serialize_post_optimize(post) for post in most_fresh_posts],
-        'popular_tags': [serialize_tag_optimize(tag) for tag in most_popular_tags],
+        'page_posts': [serialize_post(post) for post in most_fresh_posts],
+        'popular_tags': [serialize_tag(tag) for tag in most_popular_tags],
     }
     return render(request, 'index.html', context)
 
@@ -128,26 +173,18 @@ def post_detail(request, slug):
 
 
 def tag_filter(request, tag_title):
-    
+
     tag = Tag.objects.get(title=tag_title)
-
     most_popular_tags = Tag.objects.popular()[:5]
-
-    most_popular_posts = list(
-        Post.objects
-        .popular()[:5]
-        .prefetch_related('author')
-        .join_comments_amount()
-    )
-
-    related_posts = tag.posts.all()[:20].join_comments_amount()
+    most_popular_posts = get_most_popular_posts(5)
+    related_posts = get_tag_related_posts(tag, 20)
 
     context = {
         'tag': tag.title,
         'popular_tags': [serialize_tag(tag) for tag in most_popular_tags],
-        'posts': [serialize_post_optimize(post) for post in related_posts],
+        'posts': [serialize_post(post) for post in related_posts],
         'most_popular_posts': [
-            serialize_post_optimize(post) for post in most_popular_posts
+            serialize_post(post) for post in most_popular_posts
         ],
     }
 
