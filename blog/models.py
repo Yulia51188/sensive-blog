@@ -43,6 +43,13 @@ class TagQuerySet(models.QuerySet):
         )
         return popular_tags
 
+    def join_posts_amount(self):
+        tags_with_posts_amount = (
+            self
+            .annotate(posts_amount=Count('posts'))
+        )
+        return tags_with_posts_amount
+
 
 class Post(models.Model):
     title = models.CharField('Заголовок', max_length=200)
