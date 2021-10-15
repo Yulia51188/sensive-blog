@@ -14,7 +14,7 @@ class PostQuerySet(models.QuerySet):
 
         popular_posts = (
             self
-            .annotate(likes_count=Count('likes'))
+            .annotate(likes_count=Count('likes', distinct=True))
             .order_by('-likes_count')
         )        
         return popular_posts
@@ -24,7 +24,7 @@ class PostQuerySet(models.QuerySet):
         posts_with_comments = (
             Post.objects
             .filter(id__in=posts_ids)
-            .annotate(comments_amount=Count('comments'))
+            .annotate(comments_amount=Count('comments', distinct=True))
         )
         ids_and_comments = posts_with_comments.values_list('id', 'comments_amount')
         count_for_id = dict(ids_and_comments) 
@@ -38,7 +38,7 @@ class TagQuerySet(models.QuerySet):
     def popular(self):
         popular_tags = (
             Tag.objects
-            .annotate(posts_amount=Count('posts'))
+            .annotate(posts_amount=Count('posts', distinct=True))
             .order_by('-posts_amount')
         )
         return popular_tags
@@ -46,7 +46,7 @@ class TagQuerySet(models.QuerySet):
     def join_posts_amount(self):
         tags_with_posts_amount = (
             self
-            .annotate(posts_amount=Count('posts'))
+            .annotate(posts_amount=Count('posts', distinct=True))
         )
         return tags_with_posts_amount
 
