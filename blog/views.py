@@ -1,6 +1,6 @@
-from django.db.models import Count, Prefetch
+from django.db.models import Count
 from django.shortcuts import render
-from blog.models import Comment, Post, Tag
+from blog.models import Post, Tag
 
 
 def serialize_post(post):
@@ -23,8 +23,9 @@ def serialize_post_details(post):
         'title': post.title,
         'text': post.text,
         'author': post.author.username,
-        'comments': [serialize_comment(comment) for comment in post.comments.all()],
-        'likes_amount': post.likes.count(),
+        'comments': [serialize_comment(comment)
+                     for comment in post.comments.all()],
+        'likes_amount': post.likes_amount,
         'image_url': post.image.url if post.image else None,
         'published_at': post.published_at,
         'slug': post.slug,
@@ -47,75 +48,54 @@ def serialize_tag(tag):
     }
 
 
-def get_most_popular_posts(posts_amount):
-    prefetch_posts_amount = Prefetch(
-        'tags',
-        queryset=Tag.objects.annotate(posts_amount=Count('posts',
-                                                         distinct=True)),
-    )    
+def get_most_popular_posts(number_of_posts):  
     most_popular_posts = (
         Post.objects
-        .popular()[:posts_amount]
+        .popular()[:number_of_posts]
         .prefetch_related('author')
-        .prefetch_related(prefetch_posts_amount)
+        .join_posts_amount()
         .join_comments_amount()
     )
     return list(most_popular_posts)
 
 
-def get_most_fresh_posts(posts_amount):
-    prefetch_posts_amount = Prefetch(
-        'tags',
-        queryset=Tag.objects.annotate(posts_amount=Count('posts',
-                                                         distinct=True)),
-    )    
+def get_most_fresh_posts(number_of_posts):   
     fresh_posts = (
         Post.objects
         .annotate(comments_amount=Count('comments', distinct=True))
-        .order_by('-published_at')[:posts_amount]
+        .order_by('-published_at')[:number_of_posts]
         .prefetch_related('author')
-        .prefetch_related(prefetch_posts_amount)
+        .join_posts_amount()
     )
     return list(fresh_posts)
 
 
-def get_tag_related_posts(tag, posts_amount):
-    prefetch_posts_amount = Prefetch(
-        'tags',
-        queryset=Tag.objects.annotate(posts_amount=Count('posts',
-                                                         distinct=True)),
-    )
-
+def get_tag_related_posts(tag, number_of_posts):
     related_posts = (
-        tag.posts.all()[:posts_amount]
+        tag.posts.all()[:number_of_posts]
         .prefetch_related('author')
-        .prefetch_related(prefetch_posts_amount)
+        .join_posts_amount()
         .join_comments_amount()
     )
     return list(related_posts)
 
 
 def get_post_with_related_items(slug):
-    prefetch_posts_amount = Prefetch(
-        'tags',
-        queryset=Tag.objects.annotate(posts_amount=Count('posts',
-                                                         distinct=True)),
-    )
 
     post = (
         Post.objects
         .select_related('author')
-        .prefetch_related(prefetch_posts_amount)
+        .join_posts_amount()
+        .annotate(likes_amount=Count('likes', distinct=True))
+        .prefetch_related('comments__author')
         .get(slug=slug)
     )
     return post
 
 
 def index(request):
-
     most_popular_posts = get_most_popular_posts(5)
     most_fresh_posts = get_most_fresh_posts(5)
-
     most_popular_tags = Tag.objects.popular()[:5]
 
     context = {
@@ -130,7 +110,6 @@ def index(request):
 
 def post_detail(request, slug):
     post = get_post_with_related_items(slug)
-
     most_popular_tags = Tag.objects.popular()[:5]
     most_popular_posts = get_most_popular_posts(5)
 
@@ -145,7 +124,6 @@ def post_detail(request, slug):
 
 
 def tag_filter(request, tag_title):
-
     tag = Tag.objects.get(title=tag_title)
     most_popular_tags = Tag.objects.popular()[:5]
     most_popular_posts = get_most_popular_posts(5)
@@ -159,7 +137,6 @@ def tag_filter(request, tag_title):
             serialize_post(post) for post in most_popular_posts
         ],
     }
-
     return render(request, 'posts-list.html', context)
 
 
