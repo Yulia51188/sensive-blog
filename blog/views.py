@@ -1,5 +1,5 @@
 from django.db.models import Count
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from blog.models import Post, Tag
 
 
@@ -82,14 +82,13 @@ def get_tag_related_posts(tag, number_of_posts):
 
 def get_post_with_related_items(slug):
 
-    post = (
+    post = get_object_or_404(
         Post.objects
-        .select_related('author')
-        .join_posts_amount()
-        .annotate(likes_amount=Count('likes', distinct=True))
-        .prefetch_related('comments__author')
-        .get(slug=slug)
-    )
+            .select_related('author')
+            .join_posts_amount()
+            .annotate(likes_amount=Count('likes', distinct=True))
+            .prefetch_related('comments__author'),
+        slug=slug)
     return post
 
 
