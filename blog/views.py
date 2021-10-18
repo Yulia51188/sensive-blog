@@ -52,7 +52,7 @@ def get_most_popular_posts(number_of_posts):
     most_popular_posts = (
         Post.objects
         .popular()[:number_of_posts]
-        .prefetch_related('author')
+        .select_related('author')
         .join_posts_amount()
         .join_comments_amount()
     )
@@ -64,7 +64,7 @@ def get_most_fresh_posts(number_of_posts):
         Post.objects
         .annotate(comments_amount=Count('comments', distinct=True))
         .order_by('-published_at')[:number_of_posts]
-        .prefetch_related('author')
+        .select_related('author')
         .join_posts_amount()
     )
     return list(fresh_posts)
@@ -73,7 +73,7 @@ def get_most_fresh_posts(number_of_posts):
 def get_tag_related_posts(tag, number_of_posts):
     related_posts = (
         tag.posts.all()[:number_of_posts]
-        .prefetch_related('author')
+        .select_related('author')
         .join_posts_amount()
         .join_comments_amount()
     )
